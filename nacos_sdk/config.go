@@ -24,5 +24,5 @@ func InitNacosSDK(config NacosConfig) {
 	nacosNameSpace = config.NacosNameSpace
 	projectName = config.ProjectName
 	nacosGroup = config.NacosGroup
-
+	rpcPort = config.RpcPort
 }
