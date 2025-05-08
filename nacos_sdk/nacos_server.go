@@ -30,7 +30,8 @@ func RegisterNacosService() *naming_client.INamingClient {
 	// 注册RPC服务
 	portUint64, err := strconv.ParseUint(rpcPort, 10, 64)
 	if err != nil {
-		logger.Fatalf("解析RPCPort失败: %v", err)
+		logger.Errorf("解析RPCPort失败: %v 实际传入的rpc port：%s", err, rpcPort)
+		return &namingClient
 	}
 
 	// 注册RPC服务
