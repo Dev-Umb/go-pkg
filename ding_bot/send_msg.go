@@ -1,8 +1,9 @@
-package bot
+package ding_bot
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,6 +12,9 @@ import (
 // SendMsg 发送钉钉机器人消息
 // content: 消息内容
 func SendMsg(content string) error {
+	if botUrl == "" {
+		return errors.New("ding_bot url is empty!please set ding_bot url, using ding_bot.InitBot")
+	}
 	// 构建请求体
 	requestBody := map[string]interface{}{
 		"msgtype": "text",

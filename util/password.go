@@ -1,7 +1,4 @@
 /**
-* @Author: chenhao29
-* @Date: 2024/6/10
-* @QQ: 1149558764
 * @Email: i@umb.ink
  */
 package util

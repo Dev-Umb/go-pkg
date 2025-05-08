@@ -10,8 +10,8 @@ func Init() (*zap.Logger, error) {
 
 	logr, err := Use(&Config{
 		ApmConfig: ApmConfig{
-			FilePath:    "/home/web_server/kid-runner/logs/",
-			FilePrefix:  "kid-edu-app",
+			FilePath:    "./logs/",
+			FilePrefix:  "backend-logger",
 			FileFormat:  "2006-01-02",
 			LogLevel:    "info",
 			MaxFileSize: 128,

@@ -8,10 +8,9 @@ package jwt
 
 import (
 	"errors"
+	"github.com/Dev-Umb/go-pkg/errno"
+	"github.com/Dev-Umb/go-pkg/logger"
 	"github.com/gin-gonic/gin"
-	"login-server/config"
-	"login-server/internal/pkg/errno"
-	"login-server/pkg/logger"
 	"strings"
 	"time"
 
@@ -31,6 +30,12 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
+var jwtSecret = "JWT_SECRET"
+
+func InitJwtSecret(targetJwtSecret string) {
+	jwtSecret = targetJwtSecret
+}
+
 // GenerateToken 生成token
 func GenerateToken(user UserInfo) (string, error) {
 	// 创建声明
@@ -47,26 +52,26 @@ func GenerateToken(user UserInfo) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// 获取密钥
-	if config.JWTSecret == "" {
+	if jwtSecret == "" {
 		logger.Errorf("JWT密钥未配置")
 		return "", errors.New("JWT密钥未配置")
 	}
 
 	// 签名token
-	return token.SignedString([]byte(config.JWTSecret))
+	return token.SignedString([]byte(jwtSecret))
 }
 
 // ParseToken 解析token
 func ParseToken(tokenString string) (*CustomClaims, error) {
 	// 获取密钥
-	if config.JWTSecret == "" {
+	if jwtSecret == "" {
 		logger.Errorf("JWT密钥未配置")
 		return nil, errors.New("JWT密钥未配置")
 	}
 
 	// 解析token
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(config.JWTSecret), nil
+		return []byte(jwtSecret), nil
 	})
 
 	if err != nil {
@@ -96,7 +101,7 @@ func RefreshToken(tokenString string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// 签名token
-	return token.SignedString([]byte(config.JWTSecret))
+	return token.SignedString([]byte(jwtSecret))
 }
 
 // IsJwtTokenValid 判断jwt token是否有效
@@ -106,7 +111,7 @@ func IsJwtTokenValid(tokenString string) (bool, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
-		return []byte(config.JWTSecret), nil
+		return []byte(jwtSecret), nil
 	})
 	if err != nil {
 		logger.Errorf("parse jwt token error: %v", err)

@@ -1,4 +1,4 @@
-package bot
+package ding_bot
 
 import "testing"
 

@@ -88,14 +88,14 @@ func initNacosConfig() error {
 	// Nacos服务器地址
 	serverConfigs = []constant.ServerConfig{
 		{
-			IpAddr: NacosAddress,
-			Port:   NacosPort,
+			IpAddr: nacosAddress,
+			Port:   nacosPort,
 			Scheme: "http",
 		},
 	}
 	// 客户端配置
 	clientConfig = constant.ClientConfig{
-		NamespaceId:          NacosNameSpace, // 如果不需要命名空间，可以留空
+		NamespaceId:          nacosNameSpace, // 如果不需要命名空间，可以留空
 		TimeoutMs:            10000,
 		NotLoadCacheAtStart:  false, // 改为false，允许从缓存加载，提高稳定性
 		LogDir:               logDir,

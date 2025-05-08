@@ -1,7 +1,5 @@
 // Package logger **/
 /**
-* @Author: chenhao29
-* @Date: 2025/3/3 13:59
 * @QQ: 1149558764
 * @Email: i@umb.ink
  */

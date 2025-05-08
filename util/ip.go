@@ -1,7 +1,7 @@
 package util
 
 import (
-	"login-server/pkg/logger"
+	"github.com/Dev-Umb/go-pkg/logger"
 	"net"
 )
 

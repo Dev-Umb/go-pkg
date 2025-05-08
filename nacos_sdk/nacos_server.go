@@ -1,9 +1,8 @@
 package nacos_sdk
 
 import (
-	"login-server/config"
-	"login-server/pkg/logger"
-	"login-server/pkg/util"
+	"github.com/Dev-Umb/go-pkg/logger"
+	"github.com/Dev-Umb/go-pkg/util"
 	"strconv"
 	"time"
 
@@ -25,11 +24,11 @@ func RegisterNacosService() *naming_client.INamingClient {
 	// 获取本机IP地址
 	ip := util.GetLocalIP()
 	// 服务名称和分组
-	serviceName := config.ProjectName
-	serviceGroup := config.NacosGroup
+	serviceName := projectName
+	serviceGroup := nacosGroup
 
 	// 注册RPC服务
-	portUint64, err := strconv.ParseUint(config.RPCPort, 10, 64)
+	portUint64, err := strconv.ParseUint(rpcPort, 10, 64)
 	if err != nil {
 		logger.Fatalf("解析RPCPort失败: %v", err)
 	}
