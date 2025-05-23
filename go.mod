@@ -4,6 +4,7 @@ go 1.23.7
 
 require (
 	github.com/gin-gonic/gin v1.10.0
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/nacos-group/nacos-sdk-go/v2 v2.2.9
 	github.com/natefinch/lumberjack v2.0.0+incompatible
@@ -47,6 +48,7 @@ require (
 	github.com/cloudwego/base64x v0.1.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/deckarep/golang-set v1.7.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/elastic/go-licenser v0.4.2 // indirect
 	github.com/elastic/go-sysinfo v1.15.2 // indirect
 	github.com/elastic/go-windows v1.0.2 // indirect
