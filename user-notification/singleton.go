@@ -104,36 +104,58 @@ func PublishCustomEvent(openId, eventType, platformCode, message string, extra m
 // 全局便捷方法 - 订阅事件
 
 // SubscribeKickOff 订阅踢下线事件（全局方法）
-func SubscribeKickOff(openId string, handler EventHandler) error {
+func SubscribeKickOff(openId string, handler EventHandler) (string, error) {
 	return GetGlobalClient().SubscribeKickOff(openId, handler)
 }
 
 // SubscribeLogin 订阅登录事件（全局方法）
-func SubscribeLogin(openId string, handler EventHandler) error {
+func SubscribeLogin(openId string, handler EventHandler) (string, error) {
 	return GetGlobalClient().SubscribeLogin(openId, handler)
 }
 
 // SubscribeLogout 订阅退出事件（全局方法）
-func SubscribeLogout(openId string, handler EventHandler) error {
+func SubscribeLogout(openId string, handler EventHandler) (string, error) {
 	return GetGlobalClient().SubscribeLogout(openId, handler)
 }
 
 // SubscribeKickOffTyped 订阅踢下线事件（全局方法，类型化处理器）
-func SubscribeKickOffTyped(openId string, handler KickOffEventHandler) error {
+func SubscribeKickOffTyped(openId string, handler KickOffEventHandler) (string, error) {
 	return GetGlobalClient().SubscribeKickOffTyped(openId, handler)
 }
 
 // SubscribeLoginTyped 订阅登录事件（全局方法，类型化处理器）
-func SubscribeLoginTyped(openId string, handler LoginEventHandler) error {
+func SubscribeLoginTyped(openId string, handler LoginEventHandler) (string, error) {
 	return GetGlobalClient().SubscribeLoginTyped(openId, handler)
 }
 
 // SubscribeLogoutTyped 订阅退出事件（全局方法，类型化处理器）
-func SubscribeLogoutTyped(openId string, handler LogoutEventHandler) error {
+func SubscribeLogoutTyped(openId string, handler LogoutEventHandler) (string, error) {
 	return GetGlobalClient().SubscribeLogoutTyped(openId, handler)
 }
 
 // SubscribeMultipleKickOff 批量订阅踢下线事件（全局方法）
-func SubscribeMultipleKickOff(openIds []string, handler EventHandler) error {
+func SubscribeMultipleKickOff(openIds []string, handler EventHandler) ([]string, error) {
 	return GetGlobalClient().SubscribeMultipleKickOff(openIds, handler)
+}
+
+// 全局便捷方法 - 取消订阅
+
+// Unsubscribe 取消指定的订阅（全局方法）
+func Unsubscribe(subscriptionId string) error {
+	return GetGlobalClient().Unsubscribe(subscriptionId)
+}
+
+// UnsubscribeByChannel 取消指定频道的所有订阅（全局方法）
+func UnsubscribeByChannel(channel string) error {
+	return GetGlobalClient().UnsubscribeByChannel(channel)
+}
+
+// UnsubscribeAll 取消所有订阅（全局方法）
+func UnsubscribeAll() error {
+	return GetGlobalClient().UnsubscribeAll()
+}
+
+// GetActiveSubscriptions 获取所有活跃的订阅信息（全局方法）
+func GetActiveSubscriptions() []SubscriptionInfo {
+	return GetGlobalClient().GetActiveSubscriptions()
 }

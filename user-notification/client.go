@@ -2,6 +2,8 @@ package notification
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -11,15 +13,27 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
+// subscription 订阅信息结构
+type subscription struct {
+	id      string
+	channel string
+	openId  string
+	cancel  context.CancelFunc
+	pubsub  *redis.PubSub
+	active  bool
+}
+
 // client 实现 Client 接口
 type client struct {
-	rdb    *redis.Client
-	config *Config
-	ctx    context.Context
-	cancel context.CancelFunc
-	mu     sync.RWMutex
-	closed bool
-	logger Logger
+	rdb           *redis.Client
+	config        *Config
+	ctx           context.Context
+	cancel        context.CancelFunc
+	mu            sync.RWMutex
+	closed        bool
+	logger        Logger
+	subscriptions map[string]*subscription // 订阅管理
+	subMu         sync.RWMutex             // 订阅操作锁
 }
 
 // Logger 日志接口，允许用户自定义日志实现
@@ -97,11 +111,12 @@ func NewClientWithConfig(config *Config) (Client, error) {
 	// 创建客户端
 	ctx, cancel = context.WithCancel(context.Background())
 	c := &client{
-		rdb:    rdb,
-		config: config,
-		ctx:    ctx,
-		cancel: cancel,
-		logger: &defaultLogger{},
+		rdb:           rdb,
+		config:        config,
+		ctx:           ctx,
+		cancel:        cancel,
+		logger:        &defaultLogger{},
+		subscriptions: make(map[string]*subscription),
 	}
 
 	// 如果配置中提供了自定义日志器，则使用它
@@ -259,35 +274,84 @@ func (c *client) publishEvent(channel string, event interface{}) error {
 	return nil
 }
 
+// generateSubscriptionID 生成唯一的订阅ID
+func generateSubscriptionID() string {
+	bytes := make([]byte, 8)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
 // SubscribeKickOff 订阅踢下线事件
-func (c *client) SubscribeKickOff(openId string, handler EventHandler) error {
+func (c *client) SubscribeKickOff(openId string, handler EventHandler) (string, error) {
 	channel := RedisChannelUserKickOffPrefix + openId
 	return c.SubscribeCustomEvent(channel, handler)
 }
 
 // SubscribeLogin 订阅登录事件
-func (c *client) SubscribeLogin(openId string, handler EventHandler) error {
+func (c *client) SubscribeLogin(openId string, handler EventHandler) (string, error) {
 	channel := RedisChannelUserLoginPrefix + openId
 	return c.SubscribeCustomEvent(channel, handler)
 }
 
 // SubscribeLogout 订阅退出事件
-func (c *client) SubscribeLogout(openId string, handler EventHandler) error {
+func (c *client) SubscribeLogout(openId string, handler EventHandler) (string, error) {
 	channel := RedisChannelUserLogoutPrefix + openId
 	return c.SubscribeCustomEvent(channel, handler)
 }
 
 // SubscribeCustomEvent 订阅自定义事件
-func (c *client) SubscribeCustomEvent(channel string, handler EventHandler) error {
+func (c *client) SubscribeCustomEvent(channel string, handler EventHandler) (string, error) {
 	if err := c.checkClosed(); err != nil {
-		return err
+		return "", err
 	}
 
-	go func() {
-		pubsub := c.rdb.Subscribe(c.ctx, channel)
-		defer pubsub.Close()
+	// 生成订阅ID
+	subscriptionID := generateSubscriptionID()
 
-		c.logger.Infof("开始订阅频道: %s", channel)
+	// 创建订阅专用的上下文
+	subCtx, subCancel := context.WithCancel(c.ctx)
+
+	// 创建Redis订阅
+	pubsub := c.rdb.Subscribe(subCtx, channel)
+
+	// 创建订阅信息
+	sub := &subscription{
+		id:      subscriptionID,
+		channel: channel,
+		cancel:  subCancel,
+		pubsub:  pubsub,
+		active:  true,
+	}
+
+	// 如果是用户相关频道，提取OpenId
+	if len(channel) > len(RedisChannelUserKickOffPrefix) {
+		if channel[:len(RedisChannelUserKickOffPrefix)] == RedisChannelUserKickOffPrefix {
+			sub.openId = channel[len(RedisChannelUserKickOffPrefix):]
+		} else if channel[:len(RedisChannelUserLoginPrefix)] == RedisChannelUserLoginPrefix {
+			sub.openId = channel[len(RedisChannelUserLoginPrefix):]
+		} else if channel[:len(RedisChannelUserLogoutPrefix)] == RedisChannelUserLogoutPrefix {
+			sub.openId = channel[len(RedisChannelUserLogoutPrefix):]
+		}
+	}
+
+	// 保存订阅信息
+	c.subMu.Lock()
+	c.subscriptions[subscriptionID] = sub
+	c.subMu.Unlock()
+
+	// 启动订阅处理goroutine
+	go func() {
+		defer func() {
+			// 清理资源
+			pubsub.Close()
+			c.subMu.Lock()
+			if sub, exists := c.subscriptions[subscriptionID]; exists {
+				sub.active = false
+			}
+			c.subMu.Unlock()
+		}()
+
+		c.logger.Infof("开始订阅频道: %s (ID: %s)", channel, subscriptionID)
 
 		ch := pubsub.Channel()
 		for {
@@ -299,18 +363,18 @@ func (c *client) SubscribeCustomEvent(channel string, handler EventHandler) erro
 						handler(msg.Payload)
 					}
 				}
-			case <-c.ctx.Done():
-				c.logger.Infof("停止订阅频道: %s", channel)
+			case <-subCtx.Done():
+				c.logger.Infof("停止订阅频道: %s (ID: %s)", channel, subscriptionID)
 				return
 			}
 		}
 	}()
 
-	return nil
+	return subscriptionID, nil
 }
 
 // SubscribeKickOffTyped 订阅踢下线事件（类型化处理器）
-func (c *client) SubscribeKickOffTyped(openId string, handler KickOffEventHandler) error {
+func (c *client) SubscribeKickOffTyped(openId string, handler KickOffEventHandler) (string, error) {
 	return c.SubscribeKickOff(openId, func(payload string) {
 		var event UserKickOffEvent
 		if err := json.Unmarshal([]byte(payload), &event); err != nil {
@@ -322,7 +386,7 @@ func (c *client) SubscribeKickOffTyped(openId string, handler KickOffEventHandle
 }
 
 // SubscribeLoginTyped 订阅登录事件（类型化处理器）
-func (c *client) SubscribeLoginTyped(openId string, handler LoginEventHandler) error {
+func (c *client) SubscribeLoginTyped(openId string, handler LoginEventHandler) (string, error) {
 	return c.SubscribeLogin(openId, func(payload string) {
 		var event UserLoginEvent
 		if err := json.Unmarshal([]byte(payload), &event); err != nil {
@@ -334,7 +398,7 @@ func (c *client) SubscribeLoginTyped(openId string, handler LoginEventHandler) e
 }
 
 // SubscribeLogoutTyped 订阅退出事件（类型化处理器）
-func (c *client) SubscribeLogoutTyped(openId string, handler LogoutEventHandler) error {
+func (c *client) SubscribeLogoutTyped(openId string, handler LogoutEventHandler) (string, error) {
 	return c.SubscribeLogout(openId, func(payload string) {
 		var event UserLogoutEvent
 		if err := json.Unmarshal([]byte(payload), &event); err != nil {
@@ -346,13 +410,102 @@ func (c *client) SubscribeLogoutTyped(openId string, handler LogoutEventHandler)
 }
 
 // SubscribeMultipleKickOff 批量订阅踢下线事件
-func (c *client) SubscribeMultipleKickOff(openIds []string, handler EventHandler) error {
+func (c *client) SubscribeMultipleKickOff(openIds []string, handler EventHandler) ([]string, error) {
+	var subscriptionIds []string
 	for _, openId := range openIds {
-		if err := c.SubscribeKickOff(openId, handler); err != nil {
-			return fmt.Errorf("failed to subscribe kick off for user %s: %w", openId, err)
+		subId, err := c.SubscribeKickOff(openId, handler)
+		if err != nil {
+			// 如果出错，取消已经创建的订阅
+			for _, id := range subscriptionIds {
+				c.Unsubscribe(id)
+			}
+			return nil, fmt.Errorf("failed to subscribe kick off for user %s: %w", openId, err)
+		}
+		subscriptionIds = append(subscriptionIds, subId)
+	}
+	return subscriptionIds, nil
+}
+
+// Unsubscribe 取消指定的订阅
+func (c *client) Unsubscribe(subscriptionId string) error {
+	c.subMu.Lock()
+	defer c.subMu.Unlock()
+
+	sub, exists := c.subscriptions[subscriptionId]
+	if !exists {
+		return fmt.Errorf("订阅ID %s 不存在", subscriptionId)
+	}
+
+	if !sub.active {
+		return fmt.Errorf("订阅ID %s 已经不活跃", subscriptionId)
+	}
+
+	// 取消订阅
+	sub.cancel()
+	sub.active = false
+
+	c.logger.Infof("已取消订阅: %s (频道: %s)", subscriptionId, sub.channel)
+	return nil
+}
+
+// UnsubscribeByChannel 取消指定频道的所有订阅
+func (c *client) UnsubscribeByChannel(channel string) error {
+	c.subMu.Lock()
+	defer c.subMu.Unlock()
+
+	var canceledCount int
+	for _, sub := range c.subscriptions {
+		if sub.channel == channel && sub.active {
+			sub.cancel()
+			sub.active = false
+			canceledCount++
 		}
 	}
+
+	if canceledCount == 0 {
+		return fmt.Errorf("频道 %s 没有活跃的订阅", channel)
+	}
+
+	c.logger.Infof("已取消频道 %s 的 %d 个订阅", channel, canceledCount)
 	return nil
+}
+
+// UnsubscribeAll 取消所有订阅
+func (c *client) UnsubscribeAll() error {
+	c.subMu.Lock()
+	defer c.subMu.Unlock()
+
+	var canceledCount int
+	for _, sub := range c.subscriptions {
+		if sub.active {
+			sub.cancel()
+			sub.active = false
+			canceledCount++
+		}
+	}
+
+	c.logger.Infof("已取消所有订阅，总计 %d 个", canceledCount)
+	return nil
+}
+
+// GetActiveSubscriptions 获取所有活跃的订阅信息
+func (c *client) GetActiveSubscriptions() []SubscriptionInfo {
+	c.subMu.RLock()
+	defer c.subMu.RUnlock()
+
+	var subscriptions []SubscriptionInfo
+	for _, sub := range c.subscriptions {
+		if sub.active {
+			subscriptions = append(subscriptions, SubscriptionInfo{
+				ID:      sub.id,
+				Channel: sub.channel,
+				OpenId:  sub.openId,
+				Active:  sub.active,
+			})
+		}
+	}
+
+	return subscriptions
 }
 
 // Close 关闭客户端
@@ -363,6 +516,9 @@ func (c *client) Close() error {
 	if c.closed {
 		return nil
 	}
+
+	// 取消所有订阅
+	c.UnsubscribeAll()
 
 	c.cancel()
 	if err := c.rdb.Close(); err != nil {

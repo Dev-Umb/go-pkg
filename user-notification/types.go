@@ -90,21 +90,35 @@ type Client interface {
 	PublishCustomEvent(openId, eventType, platformCode, message string, extra map[string]interface{}) error
 
 	// 订阅事件
-	SubscribeKickOff(openId string, handler EventHandler) error
-	SubscribeLogin(openId string, handler EventHandler) error
-	SubscribeLogout(openId string, handler EventHandler) error
-	SubscribeCustomEvent(channel string, handler EventHandler) error
+	SubscribeKickOff(openId string, handler EventHandler) (string, error)
+	SubscribeLogin(openId string, handler EventHandler) (string, error)
+	SubscribeLogout(openId string, handler EventHandler) (string, error)
+	SubscribeCustomEvent(channel string, handler EventHandler) (string, error)
 
 	// 订阅事件（类型化处理器）
-	SubscribeKickOffTyped(openId string, handler KickOffEventHandler) error
-	SubscribeLoginTyped(openId string, handler LoginEventHandler) error
-	SubscribeLogoutTyped(openId string, handler LogoutEventHandler) error
+	SubscribeKickOffTyped(openId string, handler KickOffEventHandler) (string, error)
+	SubscribeLoginTyped(openId string, handler LoginEventHandler) (string, error)
+	SubscribeLogoutTyped(openId string, handler LogoutEventHandler) (string, error)
 
 	// 批量订阅
-	SubscribeMultipleKickOff(openIds []string, handler EventHandler) error
+	SubscribeMultipleKickOff(openIds []string, handler EventHandler) ([]string, error)
+
+	// 取消订阅
+	Unsubscribe(subscriptionId string) error
+	UnsubscribeByChannel(channel string) error
+	UnsubscribeAll() error
+	GetActiveSubscriptions() []SubscriptionInfo
 
 	// 连接管理
 	Close() error
 	Ping(ctx context.Context) error
 	IsConnected() bool
+}
+
+// SubscriptionInfo 订阅信息
+type SubscriptionInfo struct {
+	ID      string `json:"id"`      // 订阅唯一ID
+	Channel string `json:"channel"` // 订阅的频道
+	OpenId  string `json:"open_id"` // 用户OpenId（如果适用）
+	Active  bool   `json:"active"`  // 是否活跃
 }

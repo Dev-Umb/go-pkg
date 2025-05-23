@@ -12,6 +12,7 @@
 - ⚡ **高性能**: 连接池和超时控制
 - 🛡️ **错误处理**: 完善的错误处理和重连机制
 - 🌍 **全局单例**: 支持全局单例模式，方便在整个应用中使用
+- 🎛️ **订阅管理**: 支持精确的订阅控制和资源释放
 
 ## 安装
 
@@ -193,14 +194,72 @@ err := client.PublishLogout("user123", "platform001", 3600) // 在线1小时
 
 ```go
 // 订阅踢下线事件（原始处理器）
-err := client.SubscribeKickOff("user123", func(payload string) {
+subId, err := client.SubscribeKickOff("user123", func(payload string) {
     log.Printf("收到踢下线事件: %s", payload)
 })
 
 // 订阅踢下线事件（类型化处理器）
-err := client.SubscribeKickOffTyped("user123", func(event notification.UserKickOffEvent) {
+subId, err := client.SubscribeKickOffTyped("user123", func(event notification.UserKickOffEvent) {
     log.Printf("用户 %s 被踢下线: %s", event.OpenId, event.Reason)
 })
+```
+
+### 4. 取消订阅
+
+SDK 支持灵活的订阅管理，可以精确控制资源释放：
+
+```go
+// 通过订阅ID取消特定订阅
+err := client.Unsubscribe(subId)
+
+// 通过频道取消所有相关订阅
+err := client.UnsubscribeByChannel("user:kickoff:user123")
+
+// 取消所有订阅
+err := client.UnsubscribeAll()
+
+// 查看当前活跃的订阅
+subscriptions := client.GetActiveSubscriptions()
+for _, sub := range subscriptions {
+    log.Printf("订阅ID: %s, 频道: %s, 用户: %s", sub.ID, sub.Channel, sub.OpenId)
+}
+```
+
+#### 全局单例模式下的取消订阅
+
+```go
+// 使用全局方法取消订阅
+err := notification.Unsubscribe(subId)
+err := notification.UnsubscribeByChannel("user:kickoff:user123")
+err := notification.UnsubscribeAll()
+
+// 查看全局活跃订阅
+subscriptions := notification.GetActiveSubscriptions()
+```
+
+### 5. 订阅管理最佳实践
+
+1. **及时清理订阅**: 当用户下线或不再需要接收通知时，及时取消订阅以释放资源
+2. **使用订阅ID**: 保存订阅返回的ID，以便后续精确取消
+3. **监控订阅状态**: 定期检查活跃订阅数量，避免资源泄漏
+4. **分组管理**: 可以按用户或频道分组管理订阅
+
+```go
+// 示例：用户下线时清理相关订阅
+func handleUserOffline(userId string) {
+    // 取消该用户所有相关的订阅
+    channels := []string{
+        "user:kickoff:" + userId,
+        "user:login:" + userId,
+        "user:logout:" + userId,
+    }
+    
+    for _, channel := range channels {
+        if err := notification.UnsubscribeByChannel(channel); err != nil {
+            log.Printf("取消频道 %s 订阅失败: %v", channel, err)
+        }
+    }
+}
 ```
 
 ## 详细用法
@@ -362,7 +421,7 @@ SDK 提供了完善的错误处理机制：
 - [basic_usage.go](examples/basic_usage.go) - 基本用法示例（实例模式）
 - [singleton_usage/main.go](examples/singleton_usage/main.go) - 全局单例模式示例
 - [downstream_service/main.go](examples/downstream_service/main.go) - 下游服务订阅事件示例
-- [advanced_usage.go](examples/advanced_usage.go) - 高级用法示例
+- [unsubscribe_usage/main.go](examples/unsubscribe_usage/main.go) - 取消订阅和资源管理示例
 
 ## 常见问题
 
