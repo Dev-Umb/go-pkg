@@ -7,12 +7,14 @@
 package jwt
 
 import (
+	"context"
 	"errors"
+	"strings"
+	"time"
+
 	"github.com/Dev-Umb/go-pkg/errno"
 	"github.com/Dev-Umb/go-pkg/logger"
 	"github.com/gin-gonic/gin"
-	"strings"
-	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 )
@@ -53,7 +55,7 @@ func GenerateToken(user UserInfo) (string, error) {
 
 	// 获取密钥
 	if jwtSecret == "" {
-		logger.Errorf("JWT密钥未配置")
+		logger.Errorf(context.Background(), "JWT密钥未配置")
 		return "", errors.New("JWT密钥未配置")
 	}
 
@@ -65,7 +67,7 @@ func GenerateToken(user UserInfo) (string, error) {
 func ParseToken(tokenString string) (*CustomClaims, error) {
 	// 获取密钥
 	if jwtSecret == "" {
-		logger.Errorf("JWT密钥未配置")
+		logger.Errorf(context.Background(), "JWT密钥未配置")
 		return nil, errors.New("JWT密钥未配置")
 	}
 
@@ -114,7 +116,7 @@ func IsJwtTokenValid(tokenString string) (bool, error) {
 		return []byte(jwtSecret), nil
 	})
 	if err != nil {
-		logger.Errorf("parse jwt token error: %v", err)
+		logger.Errorf(context.Background(), "parse jwt token error: %v", err)
 		return false, err
 	}
 
@@ -129,7 +131,7 @@ func IsJwtTokenValid(tokenString string) (bool, error) {
 // ExtractBearerToken 从Authorization头中提取Bearer token
 func ExtractBearerToken(authHeader string) string {
 	if authHeader == "" {
-		logger.Errorf("Authorization header is empty")
+		logger.Errorf(context.Background(), "Authorization header is empty")
 		return ""
 	}
 

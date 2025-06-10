@@ -2,10 +2,12 @@
 package restart
 
 import (
-	"github.com/Dev-Umb/go-pkg/logger"
+	"context"
 	"os"
 	"os/exec"
 	"time"
+
+	"github.com/Dev-Umb/go-pkg/logger"
 )
 
 var (
@@ -22,6 +24,7 @@ var (
 // RestartService 重启当前服务
 // 通过启动一个新的进程并退出当前进程来实现重启
 func RestartService() {
+	ctx := context.Background()
 	// 如果已经在重启过程中，则不再重复触发
 	if restarting {
 		return
@@ -30,12 +33,12 @@ func RestartService() {
 	// 检查服务是否刚刚启动
 	runningDuration := time.Since(startTime).Seconds()
 	if runningDuration < float64(stableRunningTime) {
-		logger.Warnf("服务刚启动 %.2f 秒，小于稳定运行时间 %d 秒，忽略此次重启请求", runningDuration, stableRunningTime)
+		logger.Warnf(ctx, "服务刚启动 %.2f 秒，小于稳定运行时间 %d 秒，忽略此次重启请求", runningDuration, stableRunningTime)
 		return
 	}
 
 	restarting = true
-	logger.Info("配置变更，服务将在 3 秒后重启...")
+	logger.Info(ctx, "配置变更，服务将在 3 秒后重启...")
 
 	// 延迟几秒再重启，确保所有日志都已写入
 	go func() {
@@ -44,14 +47,14 @@ func RestartService() {
 		// 获取当前可执行文件路径
 		execPath, err := os.Executable()
 		if err != nil {
-			logger.Errorf("获取可执行文件路径失败: %v", err)
+			logger.Errorf(ctx, "获取可执行文件路径失败: %v", err)
 			return
 		}
 
 		// 获取当前工作目录
 		workDir, err := os.Getwd()
 		if err != nil {
-			logger.Errorf("获取工作目录失败: %v", err)
+			logger.Errorf(ctx, "获取工作目录失败: %v", err)
 			return
 		}
 
@@ -71,11 +74,11 @@ func RestartService() {
 		// 启动新进程
 		err = cmd.Start()
 		if err != nil {
-			logger.Errorf("启动新进程失败: %v", err)
+			logger.Errorf(ctx, "启动新进程失败: %v", err)
 			return
 		}
 
-		logger.Infof("新进程已启动，PID: %d", cmd.Process.Pid)
+		logger.Infof(ctx, "新进程已启动，PID: %d", cmd.Process.Pid)
 
 		// 退出当前进程
 		os.Exit(0)

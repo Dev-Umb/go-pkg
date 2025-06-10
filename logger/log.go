@@ -8,6 +8,8 @@ package logger
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +20,9 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+// TraceIDKey 用于在上下文中存储 trace id 的键
+const TraceIDKey = "traceID"
 
 type Config struct {
 	ApmConfig
@@ -42,6 +47,48 @@ var levelMap = map[string]zapcore.Level{
 func init() {
 	initGlobalLogger("debug")
 }
+
+// generateTraceID 生成traceID
+func generateTraceID() string {
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)
+}
+
+// GetTraceID 从上下文中获取traceID
+func GetTraceID(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	if traceID, ok := ctx.Value(TraceIDKey).(string); ok {
+		return traceID
+	}
+	return ""
+}
+
+// SetTraceID 将traceID设置到上下文中
+func SetTraceID(ctx context.Context, traceID string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, TraceIDKey, traceID)
+}
+
+// getOrGenerateTraceID 获取或生成traceID
+func getOrGenerateTraceID(ctx context.Context) (context.Context, string) {
+	// 从context中获取traceID
+	traceID := GetTraceID(ctx)
+
+	// 如果没有traceID，则生成一个新的
+	if traceID == "" {
+		traceID = generateTraceID()
+		// 将新生成的traceID设置到context中
+		ctx = SetTraceID(ctx, traceID)
+	}
+
+	return ctx, traceID
+}
+
 func initGlobalLogger(logLevel string) {
 	var syncWriters []zapcore.WriteSyncer
 
@@ -127,66 +174,127 @@ func withFields() []zap.Field {
 }
 
 func Debug(ctx context.Context, args ...interface{}) {
-	logger.Sugar().With(ctx).Debug(args...)
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Debug(args...)
 }
 
-func Debugf(format string, args ...interface{}) {
-	logger.Sugar().Debugf(format, args...)
+func Debugf(ctx context.Context, format string, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Debugf(format, args...)
 }
 
-func Info(args ...interface{}) {
-	logger.Sugar().Info(args...)
+func Info(ctx context.Context, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Info(args...)
 }
 
-func Infof(format string, args ...interface{}) {
-	logger.Sugar().Infof(format, args...)
+func Infof(ctx context.Context, format string, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Infof(format, args...)
 }
 
-func Warn(args ...interface{}) {
-	logger.Sugar().Warn(args...)
+func Warn(ctx context.Context, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Warn(args...)
 }
 
-func Warnf(format string, args ...interface{}) {
-	logger.Sugar().Warnf(format, args...)
+func Warnf(ctx context.Context, format string, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Warnf(format, args...)
 }
 
-func Error(args ...interface{}) {
+func Error(ctx context.Context, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
 	if len(args) > 0 {
 		if err, ok := args[0].(error); ok {
 			fmt.Printf("%+v", err)
 		}
 	}
-	logger.Sugar().Error(args...)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Error(args...)
 }
 
-func Errorf(format string, args ...interface{}) {
+func Errorf(ctx context.Context, format string, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
 	// 打印err的堆栈信息
 	if len(args) > 0 {
 		if err, ok := args[0].(error); ok {
 			fmt.Printf("%+v", err)
 		}
 	}
-	logger.Sugar().Errorf(format, args...)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Errorf(format, args...)
 }
 
-func Panic(args ...interface{}) {
-	logger.Sugar().Panic(args...)
+func Panic(ctx context.Context, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Panic(args...)
 }
 
-func Panicf(format string, args ...interface{}) {
-	logger.Sugar().Panicf(format, args...)
+func Panicf(ctx context.Context, format string, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Panicf(format, args...)
 }
 
-func Fatal(args ...interface{}) {
-	logger.Sugar().Fatal(args...)
+func Fatal(ctx context.Context, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Fatal(args...)
 }
 
-func Fatalf(format string, args ...interface{}) {
+func Fatalf(ctx context.Context, format string, args ...interface{}) {
+	ctx, traceID := getOrGenerateTraceID(ctx)
 	// 打印堆栈
 	if len(args) > 0 {
 		if err, ok := args[0].(error); ok {
 			fmt.Printf("%+v", err)
 		}
 	}
-	logger.Sugar().Fatalf(format, args...)
+	logger.With(zap.String("trace_id", traceID)).Sugar().Fatalf(format, args...)
+}
+
+// 兼容性方法 - 没有context参数的版本，这些方法会创建一个新的context
+func DebugWithoutCtx(args ...interface{}) {
+	Debug(context.Background(), args...)
+}
+
+func DebugfWithoutCtx(format string, args ...interface{}) {
+	Debugf(context.Background(), format, args...)
+}
+
+func InfoWithoutCtx(args ...interface{}) {
+	Info(context.Background(), args...)
+}
+
+func InfofWithoutCtx(format string, args ...interface{}) {
+	Infof(context.Background(), format, args...)
+}
+
+func WarnWithoutCtx(args ...interface{}) {
+	Warn(context.Background(), args...)
+}
+
+func WarnfWithoutCtx(format string, args ...interface{}) {
+	Warnf(context.Background(), format, args...)
+}
+
+func ErrorWithoutCtx(args ...interface{}) {
+	Error(context.Background(), args...)
+}
+
+func ErrorfWithoutCtx(format string, args ...interface{}) {
+	Errorf(context.Background(), format, args...)
+}
+
+func PanicWithoutCtx(args ...interface{}) {
+	Panic(context.Background(), args...)
+}
+
+func PanicfWithoutCtx(format string, args ...interface{}) {
+	Panicf(context.Background(), format, args...)
+}
+
+func FatalWithoutCtx(args ...interface{}) {
+	Fatal(context.Background(), args...)
+}
+
+func FatalfWithoutCtx(format string, args ...interface{}) {
+	Fatalf(context.Background(), format, args...)
 }

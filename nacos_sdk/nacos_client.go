@@ -1,11 +1,13 @@
 package nacos_sdk
 
 import (
+	"context"
 	"fmt"
-	"github.com/Dev-Umb/go-pkg/logger"
 	"log"
 	"os"
 	"path/filepath"
+
+	"github.com/Dev-Umb/go-pkg/logger"
 
 	"github.com/nacos-group/nacos-sdk-go/v2/common/constant"
 	"github.com/nacos-group/nacos-sdk-go/v2/model"
@@ -54,7 +56,7 @@ func createGRPCClient[T any](instance model.Instance, serviceName string, newCli
 
 // 初始化Nacos客户端配置
 func initNacosConfig() error {
-	logger.Info("initNacosConfig")
+	logger.Info(context.Background(), "initNacosConfig")
 	// 获取当前工作目录
 	workDir, err := os.Getwd()
 	if err != nil {

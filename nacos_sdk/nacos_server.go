@@ -1,10 +1,12 @@
 package nacos_sdk
 
 import (
-	"github.com/Dev-Umb/go-pkg/logger"
-	"github.com/Dev-Umb/go-pkg/util"
+	"context"
 	"strconv"
 	"time"
+
+	"github.com/Dev-Umb/go-pkg/logger"
+	"github.com/Dev-Umb/go-pkg/util"
 
 	"github.com/nacos-group/nacos-sdk-go/v2/clients/naming_client"
 	"github.com/nacos-group/nacos-sdk-go/v2/model"
@@ -14,10 +16,11 @@ import (
 // RegisterNacosService 注册服务到Nacos，并订阅相关服务
 // 返回服务发现客户端，可用于后续操作
 func RegisterNacosService() *naming_client.INamingClient {
+	ctx := context.Background()
 	// 获取服务发现客户端
 	namingClient, err := GetNamingClient()
 	if err != nil {
-		logger.Errorf("获取Nacos服务发现客户端失败: %v", err)
+		logger.Errorf(ctx, "获取Nacos服务发现客户端失败: %v", err)
 		return nil
 	}
 
@@ -30,7 +33,7 @@ func RegisterNacosService() *naming_client.INamingClient {
 	// 注册RPC服务
 	portUint64, err := strconv.ParseUint(rpcPort, 10, 64)
 	if err != nil {
-		logger.Errorf("解析RPCPort失败: %v 实际传入的rpc port：%s", err, rpcPort)
+		logger.Errorf(ctx, "解析RPCPort失败: %v 实际传入的rpc port：%s", err, rpcPort)
 		return &namingClient
 	}
 
@@ -38,33 +41,33 @@ func RegisterNacosService() *naming_client.INamingClient {
 	metadata := map[string]string{"version": "1.0.0"}
 	success, err := RegisterServiceInstance(serviceName, ip, portUint64, serviceGroup, metadata)
 	if err != nil {
-		logger.Warnf("注册RPC服务失败: %v", err)
+		logger.Warnf(ctx, "注册RPC服务失败: %v", err)
 	} else if success {
-		logger.Infof("成功注册RPC服务: %s, 分组: %s, IP: %s, 端口: %d", serviceName, serviceGroup, ip, portUint64)
+		logger.Infof(ctx, "成功注册RPC服务: %s, 分组: %s, IP: %s, 端口: %d", serviceName, serviceGroup, ip, portUint64)
 		// 也订阅自己，便于监控
 		err = SubscribeService(serviceName, serviceGroup, func(instances []model.Instance, err error) {
 			if err != nil {
-				logger.Warnf("服务订阅回调错误: %v", err)
+				logger.Warnf(ctx, "服务订阅回调错误: %v", err)
 				return
 			}
 			if len(instances) > 0 {
-				logger.Infof("服务 %s 实例发生变化，当前实例数: %d", serviceName, len(instances))
+				logger.Infof(ctx, "服务 %s 实例发生变化，当前实例数: %d", serviceName, len(instances))
 				for i, instance := range instances {
-					logger.Debugf("实例 %d: %s:%d, 健康状态: %v", i+1, instance.Ip, instance.Port, instance.Healthy)
+					logger.Debugf(ctx, "实例 %d: %s:%d, 健康状态: %v", i+1, instance.Ip, instance.Port, instance.Healthy)
 				}
 			} else {
-				logger.Warnf("服务 %s 当前没有可用实例", serviceName)
+				logger.Warnf(ctx, "服务 %s 当前没有可用实例", serviceName)
 			}
 		})
 		if err != nil {
-			logger.Warnf("订阅服务失败: %v", err)
+			logger.Warnf(ctx, "订阅服务失败: %v", err)
 		} else {
-			logger.Infof("成功订阅服务: %s, 分组: %s", serviceName, serviceGroup)
+			logger.Infof(ctx, "成功订阅服务: %s, 分组: %s", serviceName, serviceGroup)
 		}
 	}
 
 	if namingClient == nil {
-		logger.Errorf("RegisterNacos Error! namingClient is nil")
+		logger.Errorf(ctx, "RegisterNacos Error! namingClient is nil")
 		return nil
 	}
 
@@ -76,9 +79,10 @@ func RegisterNacosService() *naming_client.INamingClient {
 
 // 验证服务注册状态
 func verifyRegisteredServices(serviceName, wsServiceName, serviceGroup string) {
+	ctx := context.Background()
 	client, err := GetNamingClient()
 	if err != nil {
-		logger.Errorf("获取Nacos客户端失败: %v", err)
+		logger.Errorf(ctx, "获取Nacos客户端失败: %v", err)
 		return
 	}
 
@@ -88,16 +92,16 @@ func verifyRegisteredServices(serviceName, wsServiceName, serviceGroup string) {
 		GroupName:   serviceGroup,
 	})
 	if err != nil {
-		logger.Errorf("获取RPC服务列表失败: %+v", err)
+		logger.Errorf(ctx, "获取RPC服务列表失败: %+v", err)
 	} else {
 		if len(service.Hosts) > 0 {
-			logger.Infof("RPC服务 %s 实例数量: %d", serviceName, len(service.Hosts))
+			logger.Infof(ctx, "RPC服务 %s 实例数量: %d", serviceName, len(service.Hosts))
 			for i, instance := range service.Hosts {
-				logger.Infof("实例 %d: %s:%d, 健康状态: %v, 元数据: %v",
+				logger.Infof(ctx, "实例 %d: %s:%d, 健康状态: %v, 元数据: %v",
 					i+1, instance.Ip, instance.Port, instance.Healthy, instance.Metadata)
 			}
 		} else {
-			logger.Warnf("RPC服务 %s 当前没有实例，可能注册未生效", serviceName)
+			logger.Warnf(ctx, "RPC服务 %s 当前没有实例，可能注册未生效", serviceName)
 		}
 	}
 
@@ -107,16 +111,16 @@ func verifyRegisteredServices(serviceName, wsServiceName, serviceGroup string) {
 		GroupName:   serviceGroup,
 	})
 	if err != nil {
-		logger.Errorf("获取WebSocket服务列表失败: %+v", err)
+		logger.Errorf(ctx, "获取WebSocket服务列表失败: %+v", err)
 	} else {
 		if len(wsService.Hosts) > 0 {
-			logger.Infof("WebSocket服务 %s 实例数量: %d", wsServiceName, len(wsService.Hosts))
+			logger.Infof(ctx, "WebSocket服务 %s 实例数量: %d", wsServiceName, len(wsService.Hosts))
 			for i, instance := range wsService.Hosts {
-				logger.Infof("实例 %d: %s:%d, 健康状态: %v, 元数据: %v",
+				logger.Infof(ctx, "实例 %d: %s:%d, 健康状态: %v, 元数据: %v",
 					i+1, instance.Ip, instance.Port, instance.Healthy, instance.Metadata)
 			}
 		} else {
-			logger.Warnf("WebSocket服务 %s 当前没有实例，可能注册未生效", wsServiceName)
+			logger.Warnf(ctx, "WebSocket服务 %s 当前没有实例，可能注册未生效", wsServiceName)
 		}
 	}
 
@@ -127,11 +131,11 @@ func verifyRegisteredServices(serviceName, wsServiceName, serviceGroup string) {
 		HealthyOnly: false, // 不限制只查询健康实例，以便看到所有状态的实例
 	})
 	if err != nil {
-		logger.Errorf("SelectInstances RPC服务失败: %+v", err)
+		logger.Errorf(ctx, "SelectInstances RPC服务失败: %+v", err)
 	} else {
-		logger.Infof("SelectInstances获取到RPC实例数量: %d", len(instances))
+		logger.Infof(ctx, "SelectInstances获取到RPC实例数量: %d", len(instances))
 		for i, ins := range instances {
-			logger.Infof("实例 %d: %s:%d, 健康: %v, 启用: %v",
+			logger.Infof(ctx, "实例 %d: %s:%d, 健康: %v, 启用: %v",
 				i+1, ins.Ip, ins.Port, ins.Healthy, ins.Enable)
 		}
 	}
@@ -143,11 +147,11 @@ func verifyRegisteredServices(serviceName, wsServiceName, serviceGroup string) {
 		HealthyOnly: false,
 	})
 	if err != nil {
-		logger.Errorf("SelectInstances WebSocket服务失败: %+v", err)
+		logger.Errorf(ctx, "SelectInstances WebSocket服务失败: %+v", err)
 	} else {
-		logger.Infof("SelectInstances获取到WebSocket实例数量: %d", len(wsInstances))
+		logger.Infof(ctx, "SelectInstances获取到WebSocket实例数量: %d", len(wsInstances))
 		for i, ins := range wsInstances {
-			logger.Infof("WebSocket实例 %d: %s:%d, 健康: %v, 启用: %v",
+			logger.Infof(ctx, "WebSocket实例 %d: %s:%d, 健康: %v, 启用: %v",
 				i+1, ins.Ip, ins.Port, ins.Healthy, ins.Enable)
 		}
 	}
