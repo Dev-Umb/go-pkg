@@ -66,7 +66,6 @@ func initNacosConfig() error {
 	// 创建nacos目录（使用绝对路径）
 	nacosDir = filepath.Join(workDir, "nacos_sdk")
 	logDir = filepath.Join(nacosDir, "log")
-	cacheDir = filepath.Join(nacosDir, "cache")
 	configDir := filepath.Join(cacheDir, "config")
 
 	// 确保目录存在
@@ -91,24 +90,19 @@ func initNacosConfig() error {
 
 	// Nacos服务器地址
 	serverConfigs = []constant.ServerConfig{
-		{
-			IpAddr: nacosAddress,
-			Port:   nacosPort,
-			Scheme: "http",
-		},
+		*constant.NewServerConfig(
+			nacosAddress, nacosPort, constant.WithScheme("http")),
 	}
 	// 客户端配置
 	clientConfig = constant.ClientConfig{
 		NamespaceId:          nacosNameSpace, // 如果不需要命名空间，可以留空
 		TimeoutMs:            10000,
-		NotLoadCacheAtStart:  false, // 改为false，允许从缓存加载，提高稳定性
+		NotLoadCacheAtStart:  true,
 		LogDir:               logDir,
-		CacheDir:             cacheDir,
 		LogLevel:             "debug",
 		UpdateThreadNum:      5,        // 更新线程数
 		UpdateCacheWhenEmpty: true,     // 当服务列表为空时更新缓存
 		BeatInterval:         1 * 1000, // 心跳间隔，单位毫秒（调整为更频繁的心跳）
 	}
-
 	return nil
 }

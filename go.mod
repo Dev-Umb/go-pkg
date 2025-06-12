@@ -6,7 +6,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang-jwt/jwt/v4 v4.5.1
-	github.com/nacos-group/nacos-sdk-go/v2 v2.2.9
+	github.com/nacos-group/nacos-sdk-go/v2 v2.3.2
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	go.elastic.co/apm v1.15.0
 	go.elastic.co/apm/module/apmzap v1.15.0
