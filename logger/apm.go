@@ -9,10 +9,8 @@
 package logger
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path"
 	"strings"
 	"sync"
@@ -20,8 +18,6 @@ import (
 
 	"github.com/natefinch/lumberjack"
 	"github.com/volcengine/volc-sdk-golang/service/tls"
-	"go.elastic.co/apm"
-	"go.elastic.co/apm/module/apmzap"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -50,6 +46,7 @@ type TLSConfig struct {
 	Region          string // 区域
 	TopicID         string // 日志主题ID
 	Source          string // 日志来源标识
+	ServiceName     string // 日志所属服务名
 }
 
 // TLSWriter 火山引擎TLS日志写入器
@@ -185,10 +182,10 @@ func (w *TLSWriter) sendLogs(logBuffer [][]byte) {
 		}
 
 		// 添加服务名称
-		if serviceName := os.Getenv("ELASTIC_APM_SERVICE_NAME"); serviceName != "" {
+		if w.config.ServiceName != "" {
 			logContent = append(logContent, tls.LogContent{
 				Key:   "service_name",
-				Value: serviceName,
+				Value: w.config.ServiceName,
 			})
 		}
 
@@ -202,7 +199,7 @@ func (w *TLSWriter) sendLogs(logBuffer [][]byte) {
 		TopicID:      w.config.TopicID,
 		CompressType: "lz4",
 		Source:       w.config.Source,
-		FileName:     "go-logger",
+		FileName:     "logger",
 		Logs:         logs,
 	})
 
@@ -214,48 +211,35 @@ func (w *TLSWriter) sendLogs(logBuffer [][]byte) {
 
 func (log *kLogger) Fatal(args ...interface{}) {
 	s := fmt.Sprint(args...)
-	e := apm.CaptureError(log.ctx, errors.New(s))
-	e.Send()
-
 	log.logger.Fatal(s)
 }
 
 func (log *kLogger) Fatalf(format string, args ...interface{}) {
 	s := fmt.Sprintf(format, args...)
-	e := apm.CaptureError(log.ctx, errors.New(s))
-	e.Send()
 
 	log.logger.Fatal(s)
 }
 
 func (log *kLogger) Panic(args ...interface{}) {
 	s := fmt.Sprint(args...)
-	e := apm.CaptureError(log.ctx, errors.New(s))
-	e.Send()
 
 	log.logger.Panic(s)
 }
 
 func (log *kLogger) Panicf(format string, args ...interface{}) {
 	s := fmt.Sprintf(format, args...)
-	e := apm.CaptureError(log.ctx, errors.New(s))
-	e.Send()
 
 	log.logger.Panic(s)
 }
 
 func (log *kLogger) Error(args ...interface{}) {
 	s := fmt.Sprint(args...)
-	e := apm.CaptureError(log.ctx, errors.New(s))
-	e.Send()
 
 	log.logger.Error(s)
 }
 
 func (log *kLogger) Errorf(format string, args ...interface{}) {
 	s := fmt.Sprintf(format, args...)
-	e := apm.CaptureError(log.ctx, errors.New(s))
-	e.Send()
 
 	log.logger.Error(s)
 }
@@ -285,21 +269,9 @@ func (log *kLogger) With(fields ...interface{}) *kLogger {
 	return log
 }
 
-func (log *kLogger) WithTrace() *kLogger {
-	tx := apm.TransactionFromContext(log.ctx)
-	traceContext := tx.TraceContext()
-	return log.With(zap.String("trace.id", traceContext.Trace.String()), zap.String("transaction.id", traceContext.Span.String()))
-}
-
-func WithContext(ctx context.Context) *kLogger {
-	l := logger.With(apmzap.TraceContext(ctx)...)
-	return &kLogger{logger: l, ctx: ctx}
-}
-
 func (log *kLogger) WithLabel(labels map[string]string) *kLogger {
-	span := apm.SpanFromContext(log.ctx)
 	for k, v := range labels {
-		span.Context.SetLabel(k, v)
+
 		log.logger = log.logger.With(zap.String(k, v))
 	}
 	return log

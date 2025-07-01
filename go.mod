@@ -9,8 +9,6 @@ require (
 	github.com/nacos-group/nacos-sdk-go/v2 v2.3.2
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/volcengine/volc-sdk-golang v1.0.213
-	go.elastic.co/apm v1.15.0
-	go.elastic.co/apm/module/apmzap v1.15.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.36.0
 	google.golang.org/grpc v1.72.0
