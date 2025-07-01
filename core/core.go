@@ -3,14 +3,13 @@ package core
 import (
 	"context"
 	"encoding/json"
+	"github.com/Dev-Umb/go-pkg/errno"
 	"net/http"
 	"time"
 
-	"github.com/Dev-Umb/go-pkg/errno"
 	"github.com/Dev-Umb/go-pkg/logger"
 
 	"github.com/gin-gonic/gin"
-	"go.elastic.co/apm"
 )
 
 // TraceKey 用于在上下文中存储 trace id 的键
@@ -35,12 +34,13 @@ type Data struct {
 
 // GetTraceID 从上下文中获取traceID
 func GetTraceID(ctx context.Context) string {
-	return logger.GetTraceID(ctx)
-}
-
-// SetTraceID 将traceID设置到上下文中
-func SetTraceID(ctx context.Context, traceID string) context.Context {
-	return logger.SetTraceID(ctx, traceID)
+	if ctx == nil {
+		return ""
+	}
+	if traceID, ok := ctx.Value(TraceIDKey).(string); ok {
+		return traceID
+	}
+	return ""
 }
 
 // GetTraceIDFromGin 从gin上下文中获取traceID
@@ -61,14 +61,6 @@ func GetTraceIDFromGin(c *gin.Context) string {
 func SendResponse(c *gin.Context, err error, data interface{}) {
 	// 获取traceID，优先从gin上下文中获取
 	traceID := GetTraceIDFromGin(c)
-
-	// 如果上下文中没有traceID，再尝试从apm中获取
-	if traceID == "" {
-		tx := apm.TransactionFromContext(c.Request.Context())
-		if tx != nil {
-			traceID = tx.TraceContext().Trace.String()
-		}
-	}
 
 	// 计算请求耗时
 	var elapsed time.Duration
@@ -95,11 +87,11 @@ func SendResponse(c *gin.Context, err error, data interface{}) {
 	// 记录详细的响应日志
 	if err != nil {
 		// 如果有错误，记录错误信息
-		logger.Infof(c.Request.Context(), "[%s] Response error: code=%d, message=%s, elapsed=%v",
+		logger.Infof(c, "[%s] Response error: code=%d, message=%s, elapsed=%v",
 			traceID, code, message, elapsed)
 	} else {
 		// 正常响应
-		logger.Infof(c.Request.Context(), "[%s] Response completed: code=%d, elapsed=%v, data=%s",
+		logger.Infof(c, "[%s] Response completed: code=%d, elapsed=%v, data=%s",
 			traceID, code, elapsed, string(responseBytes))
 	}
 

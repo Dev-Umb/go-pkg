@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"go.elastic.co/apm"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -133,8 +132,6 @@ func Use(config *Config) (*zap.Logger, error) {
 	logger = logger.WithOptions(zap.WrapCore(func(core zapcore.Core) zapcore.Core {
 		return zapcore.NewTee(core, fileCore)
 	}))
-	apm.DefaultTracer.SetLogger(logger.Sugar())
-
 	fields := withFields()
 	logger = logger.With(fields...)
 	zap.ReplaceGlobals(logger)
@@ -143,15 +140,6 @@ func Use(config *Config) (*zap.Logger, error) {
 
 func withFields() []zap.Field {
 	var fields []zap.Field
-	projectName := os.Getenv("ELASTIC_APM_SERVICE_NAME")
-	if len(projectName) == 0 {
-		projectName = os.Args[0]
-		projectName = strings.Trim(projectName, "./")
-	}
-	if len(projectName) == 0 {
-		projectName = "please set a projectName"
-	}
-	fields = append(fields, zap.String("application.name", projectName))
 	if AppVersion() != "" {
 		fields = append(fields, zap.String("version", AppVersion()))
 	}
