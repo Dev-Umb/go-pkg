@@ -12,7 +12,7 @@ func main() {
 	// 初始化全局客户端
 	err := notification.InitGlobalClient("redis://localhost:6379/0")
 	if err != nil {
-		log.Fatalf("初始化通知客户端失败: %v", err)
+		log.Printf("初始化通知客户端失败: %v", err)
 	}
 	defer notification.CloseGlobalClient()
 
@@ -27,7 +27,7 @@ func main() {
 		fmt.Printf("收到踢下线事件: %s\n", payload)
 	})
 	if err != nil {
-		log.Fatalf("订阅踢下线事件失败: %v", err)
+		log.Printf("订阅踢下线事件失败: %v", err)
 	}
 	fmt.Printf("踢下线事件订阅ID: %s\n", kickOffSubId)
 
@@ -37,7 +37,7 @@ func main() {
 		fmt.Printf("收到登录事件: %s\n", payload)
 	})
 	if err != nil {
-		log.Fatalf("订阅登录事件失败: %v", err)
+		log.Printf("订阅登录事件失败: %v", err)
 	}
 	fmt.Printf("登录事件订阅ID: %s\n", loginSubId)
 
@@ -47,7 +47,7 @@ func main() {
 		fmt.Printf("收到退出事件: OpenId=%s, Duration=%d秒\n", event.OpenId, event.Duration)
 	})
 	if err != nil {
-		log.Fatalf("订阅退出事件失败: %v", err)
+		log.Printf("订阅退出事件失败: %v", err)
 	}
 	fmt.Printf("退出事件订阅ID: %s\n", logoutSubId)
 

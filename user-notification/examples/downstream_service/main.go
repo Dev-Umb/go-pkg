@@ -22,7 +22,7 @@ func main() {
 		notification.WithPoolSize(10),           // 连接池大小
 	)
 	if err != nil {
-		log.Fatalf("初始化全局通知客户端失败: %v", err)
+		log.Printf("初始化全局通知客户端失败: %v", err)
 	}
 	log.Println("全局通知客户端初始化成功")
 

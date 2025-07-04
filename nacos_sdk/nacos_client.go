@@ -82,7 +82,7 @@ func initNacosConfig() error {
 		// 创建空文件
 		f, err := os.Create(testConfigPath)
 		if err != nil {
-			log.Fatalf("nacos_sdk err %v", err)
+			log.Printf("nacos_sdk err %v", err)
 			return err
 		}
 		f.Close()

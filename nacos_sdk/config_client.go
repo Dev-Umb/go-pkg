@@ -61,7 +61,7 @@ func GetConfigValue(dataId, group string) (string, error) {
 	})
 	if err != nil {
 
-		log.Fatalf("获取配置失败 [%s:%s]: %v", group, dataId, err)
+		log.Printf("获取配置失败 [%s:%s]: %v", group, dataId, err)
 		return "", err
 	}
 

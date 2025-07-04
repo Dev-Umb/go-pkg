@@ -19,14 +19,14 @@ func main() {
 		notification.WithPoolSize(10),           // 连接池大小
 	)
 	if err != nil {
-		log.Fatalf("创建客户端失败: %v", err)
+		log.Printf("创建客户端失败: %v", err)
 	}
 	defer client.Close()
 
 	// 测试连接
 	ctx := context.Background()
 	if err := client.Ping(ctx); err != nil {
-		log.Fatalf("连接 Redis 失败: %v", err)
+		log.Printf("连接 Redis 失败: %v", err)
 	}
 	log.Println("成功连接到 Redis")
 

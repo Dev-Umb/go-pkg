@@ -21,7 +21,7 @@ func Init() (*zap.Logger, error) {
 		},
 	})
 	if err != nil {
-		log.Fatal("启动日志失败！")
+		log.Printf("启动日志失败！")
 	}
 
 	return logr, nil
